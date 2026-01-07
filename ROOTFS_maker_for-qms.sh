@@ -1,7 +1,37 @@
 #!/bin/bash
 
-# Configuration variables
-LOG_DIR="./download/logs"
+# Determine script directory to ensure relative paths to helper scripts work
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Default Configuration variables (relative to script location)
+LOG_DIR="$SCRIPT_DIR/download/logs"
+IMG_DIR="$SCRIPT_DIR/download/img"
+VERBOSE=""
+
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --logdir) LOG_DIR="$2"; shift ;;
+        --imgdir) IMG_DIR="$2"; shift ;;
+        -v|--verbose) VERBOSE="-v" ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+# Resolve absolute paths for directories using python3
+LOG_DIR=$(python3 -c "import os; print(os.path.abspath('$LOG_DIR'))")
+IMG_DIR=$(python3 -c "import os; print(os.path.abspath('$IMG_DIR'))")
+
+if [ -n "$VERBOSE" ]; then
+    echo "Running in verbose mode"
+    echo "Script Directory: $SCRIPT_DIR"
+    echo "Log Directory:    $LOG_DIR"
+    echo "Image Directory:  $IMG_DIR"
+fi
+
+# Change working directory to script location
+cd "$SCRIPT_DIR" || { echo "Failed to change directory to $SCRIPT_DIR"; exit 1; }
 
 # Global variables to store results
 ROOTFS_SYMLINKS=0
@@ -90,27 +120,21 @@ display_errors_from_log() {
     fi
 }
 
-# Check if verbose flag is set
-VERBOSE=""
-if [[ "$1" == "-v" || "$1" == "--verbose" ]]; then
-    VERBOSE="-v"
-    echo "Running in verbose mode"
-fi
-
 # Ensure log directory exists
 mkdir -p "$LOG_DIR"
+mkdir -p "$IMG_DIR"
 
 # Extract images
-extract_image "./download/img/rootfs.img" "./download/img/ROOTFS" "extract_errors_ROOTFS.log" "rootfs.img"
-convert_symlink "./download/img/ROOTFS"
-extract_image "./download/img/hal.img" "./download/img/ROOTFS/hal" "extract_errors_hal.log" "hal.img"
-convert_symlink "./download/img/ROOTFS"
-extract_image "./download/img/modules.img" "./download/img/ROOTFS/lib/modules" "extract_errors_modules.log" "modules.img"
-convert_symlink "./download/img/ROOTFS"
-extract_image "./download/img/system-data.img" "./download/img/ROOTFS/opt" "extract_errors_opt.log" "system-data.img"
-convert_symlink "./download/img/ROOTFS"
-mkdir -p "./download/img/ROOTFS/opt/usr/home"
-mkdir -p "./download/img/ROOTFS/opt/var"
+extract_image "$IMG_DIR/rootfs.img" "$IMG_DIR/ROOTFS" "extract_errors_ROOTFS.log" "rootfs.img"
+convert_symlink "$IMG_DIR/ROOTFS"
+extract_image "$IMG_DIR/hal.img" "$IMG_DIR/ROOTFS/hal" "extract_errors_hal.log" "hal.img"
+convert_symlink "$IMG_DIR/ROOTFS"
+extract_image "$IMG_DIR/modules.img" "$IMG_DIR/ROOTFS/lib/modules" "extract_errors_modules.log" "modules.img"
+convert_symlink "$IMG_DIR/ROOTFS"
+extract_image "$IMG_DIR/system-data.img" "$IMG_DIR/ROOTFS/opt" "extract_errors_opt.log" "system-data.img"
+convert_symlink "$IMG_DIR/ROOTFS"
+mkdir -p "$IMG_DIR/ROOTFS/opt/usr/home"
+mkdir -p "$IMG_DIR/ROOTFS/opt/var"
 
 echo "Extraction completed!"
 
@@ -163,3 +187,4 @@ echo "  $LOG_DIR/extract_errors_ROOTFS.log"
 echo "  $LOG_DIR/extract_errors_opt.log"
 echo "  $LOG_DIR/extract_errors_hal.log"
 echo "  $LOG_DIR/extract_errors_modules.log"
+
